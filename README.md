@@ -72,6 +72,11 @@ report_format = "html"
 
 # Report output file
 report_file = "output.html"
+
+# Telegram Notification
+telegram_api_key = ""
+telegram_chat_id = ""
+telegram_thread_id = ""
 ```
 
 ### monitor.list

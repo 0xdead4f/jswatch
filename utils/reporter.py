@@ -4,6 +4,9 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Optional
 from utils.differ import DiffResult
+from utils.notifier import TelegramNotifier, TelegramConfig
+from utils.config import load_config
+import asyncio
 
 @dataclass
 class Report:
@@ -19,6 +22,16 @@ class Reporter:
         self.reports: List[Report] = []
         self.total_changes = 0
         self.last_update = None
+
+        # Initialize Telegram notifier if configured
+        self.notifier = None
+        config = load_config(Path("config.conf"))
+        if config.telegram_bot_api :
+            self.notifier = TelegramNotifier(TelegramConfig(
+                api_key=config.telegram_bot_api,
+                chat_id=config.telegram_chat_id,
+                thread_id=config.telegram_thread_id
+            ))
 
     def generate_report(self, url: str, diff_result: Optional[DiffResult], status: str):
         self.last_update = datetime.now()
@@ -244,6 +257,9 @@ class Reporter:
 </html>'''
 
         self.report_file.write_text(html)
+        if self.notifier and self.total_changes > 0:
+            caption = f"JSWatch Report - {self.total_changes} changes detected"
+            asyncio.create_task(self.notifier.send_document(self.report_file, caption))
 
     def _write_markdown_report(self):
         content = []
@@ -265,3 +281,6 @@ Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 {"".join(content)}'''
 
         self.report_file.write_text(md_report)
+        if self.notifier and self.total_changes > 0:
+            caption = f"JSWatch Report - {self.total_changes} changes detected"
+            asyncio.create_task(self.notifier.send_document(self.report_file, caption))
