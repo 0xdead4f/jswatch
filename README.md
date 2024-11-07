@@ -1,4 +1,7 @@
 ![Logo](logo.png)
+
+---
+
 JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation, beautiful HTML/Markdown reports, and real-time monitoring capabilities.
 
 ## Features
@@ -126,8 +129,6 @@ Time: 2024-11-06 14:30:00
 - Old line removed
 ```
 ````
-
-```
 
 ## Contributing 🤝
 
