@@ -1,7 +1,3 @@
 env
-monitor.list
-js
-reports
-jswatch.log
-utils/__pycache__
-config_local.conf
+js/*
+test_monitor.json

@@ -2,20 +2,16 @@
 
 ---
 
-JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation, beautiful HTML/Markdown reports, and real-time monitoring capabilities.
+JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout.
 
 ## Features
-
-- Real-time monitoring of remote JavaScript files
-- Beautiful HTML and Markdown reports
-- Detailed diff generation with context
 
 ## Installation
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/jswatch.git
+git clone https://github.com/0xdead4f/jswatch.git
 cd jswatch
 ```
 
@@ -25,110 +21,118 @@ cd jswatch
 pip install -r requirements.txt
 ```
 
-3. Create `monitor.list` file
+3. Configure the `monitor.json` file
 
-```text
-https://example.com/test.js
-https://example.com/analytic.js
+There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed. But all attribute need to be provided.
+
+```json
+{
+      // Static JavaScript file configuration
+      "title": "Main Application JS",                    // Identifier for the file, will be used as filename
+      "is_static": true,                                 // Direct URL to JS file
+      "url": "https://example.com/static/app.js",
+
+      // if is_static set to true, attribute below is not used but still must be provided
+      "regex_attribute": null,
+      "url_to_append": "",
+      "regex_js": ""
+    },
+    {
+      // Dynamic JavaScript file configuration
+      "title": "Dynamic Module JS",                      // Identifier for monitoring
+      "is_static": false,                                // File requires scraping from webpage
+      "url": "https://example.com/index.html",          // URL of the webpage containing the script
+      "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",  // Pattern to find script tags
+      "url_to_append": "https://example.com",           // Base URL for completing relative paths
+      "regex_attribute": "specific_function_name or Variable"        // Pattern to identify correct script content
+    }
 ```
 
-4. Run Script
+4. Run the app
 
 ```bash
-python main.py
+python jswatch.py
 ```
 
-## Project Structure 📁
+## Configuration Types
 
-```
-jswatch/
-├── main.py              # Main script
-├── config.conf          # Configuration file
-├── monitor.list         # URLs to monitor
-├── utils/
-│   ├── __init__.py
-│   ├── downloader.py    # File download handler
-│   ├── differ.py        # Diff generation
-│   ├── reporter.py      # Report generation
-│   └── helpers.py       # Utility functions
-├── js_files/           # Downloaded JavaScript files
-│   └── versions.json    # Version tracking
-└── output.html         # Generated report
+### Static JavaScript File
+
+Use this when you have a direct URL to the JavaScript file.
+
+```json
+{
+  "title": "Main Script",
+  "is_static": true,
+  "url": "https://example.com/main.js"
+}
 ```
 
-## Configuration ⚙️
+### Dynamic JavaScript File
 
-### config.conf
+Use this when the JavaScript file needs to be found within a webpage.
 
-```toml
-# Directory to store downloaded JS files
-storage_dir = "js_files"
-
-# Check interval in minutes
-check_interval_minutes = 60
-
-# Logging level (DEBUG, INFO, WARNING, ERROR)
-log_level = "INFO"
-
-# Report format (markdown or html)
-report_format = "html"
-
-# Report output file
-report_file = "output.html"
-
-# Telegram Notification
-telegram_api_key = ""
-telegram_chat_id = ""
-telegram_thread_id = ""
+```json
+{
+  "title": "Dynamic Script",
+  "is_static": false,
+  "url": "https://example.com/page.html",
+  "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
+  "url_to_append": "https://example.com",
+  "regex_attribute": "specific_content"
+}
 ```
 
-### monitor.list
+## How It Works
 
-Add URLs to monitor (one per line):
+1. First Run:
 
-```
-https://example.com/main.js
-https://example.com/analytics.js
-```
+   - Creates ./js directory
+   - Downloads initial versions of files
+   - Saves them as baselines named base on `title` on the configuration
 
-## Usage 💻
+2. Monitoring:
 
-1. Set up your configuration:
+   - Checks files every time you run the program
+   - Downloads current versions
+   - Compares with baselines
+   - Generates dif report for changes
 
-   - Configure `config.conf` with your preferences
-   - Add URLs to `monitor.list`
+3. Change Detection:
+   - Formats report in Markdown
+   - writen into stdout using `print()`
+   - Saves report history on `./js/{title}.md`
 
-2. Run JSWatch:
+## Reports
 
-```bash
-python main.py
-```
-
-## Report Types
-
-### HTML Report
-
-![alt text](image.png)
-
-### Markdown Report
-
-Example:
+When changes are detected, you'll see reports like this:
 
 ````markdown
-# JSWatch Report
+## JSwatch : new change for `script.js`
 
-Generated on: 2024-11-06 14:30:00
-
-## example.com/main.js
-
-Status: Changed
-Time: 2024-11-06 14:30:00
+url : https://example.com/script.js
+time : 2025-01-05 12:34:56
 
 ```diff
-+ New line added
-- Old line removed
+- old code
++ new code
 ```
 ````
+
+## Tips
+
+1. Testing Your Regex:
+
+   - Use Python's regex tester to verify patterns
+   - Test URL construction with url_to_append
+
+2. Common Issues:
+
+   - Verify URL accessibility
+   - Confirm regex patterns match target scripts
+
+3. Use `DEBUG` mode
+   - set `DEBUG = True` on `jswatch.py` to make more verbose output like regex match
 
 ## Contributing 🤝
 
@@ -141,4 +145,3 @@ Time: 2024-11-06 14:30:00
 ## License 📄
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-```

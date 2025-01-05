@@ -1,0 +1,10 @@
+[
+  {
+    "title": "Test PLannthat",
+    "is_static": false,
+    "url": "https://www.plannthat.com/home/",
+    "regex_attribute": "Promise based HTTP client for the browser and node.js",
+    "regex_js": "<link.*?href=\"(/_nuxt/.*?\\.js)\".*?>",
+    "url_to_append": "https://www.plannthat.com"
+  }
+]

@@ -1,3 +1,2 @@
-httpx
-tomli
-aiohttp
+requests
+jsbeautifier
