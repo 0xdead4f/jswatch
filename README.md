@@ -2,7 +2,9 @@
 
 ---
 
-JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout.
+JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout. 
+
+> But in practice , i personally used this tool not just for javascript file , but for other remote static file.
 
 ## Features
 
