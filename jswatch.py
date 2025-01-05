@@ -9,7 +9,7 @@ from datetime import datetime
 import difflib
 import jsbeautifier
 
-DEBUG = True
+DEBUG = False # Set to True to enable debug output
 
 @dataclass
 class FileConfig:
