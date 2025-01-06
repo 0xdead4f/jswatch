@@ -174,7 +174,7 @@ time : 2025-01-05 12:34:56
    - Confirm regex patterns match target scripts
 
 3. Use `DEBUG` mode
-   - set `DEBUG = True` on `jswatch.py` to make more verbose output like regex match
+   - use debug mode by providing `--debug` as args to add more verbose output like regex match status
 
 ## Contributing 🤝
 
