@@ -48,6 +48,7 @@ There is two type of javascript that can be monitored, static and dynamic. The `
   "regex_attribute": "specific_function_name or Variable",
 
   // Custom header for the every request
+  // DO NOT provide this attribute if there is NONE
   "custom_header": {}
 }
 ```
