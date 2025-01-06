@@ -8,17 +8,22 @@ from pathlib import Path
 from datetime import datetime
 import difflib
 import jsbeautifier
+import sys
 
-DEBUG = False # Set to True to enable debug output
+if "--debug" in sys.argv:
+    DEBUG = True
+else:
+    DEBUG = False
 
 @dataclass
 class FileConfig:
     title: str
     is_static: bool
     url: str
-    regex_js: Optional[str]
-    url_to_append: Optional[str]
-    regex_attribute: Optional[str]
+    regex_js: Optional[str] = None
+    url_to_append: Optional[str] = None
+    regex_attribute: Optional[str] = None
+    custom_header: Optional[dict[str]] = None
 
 class FileMonitor:
     def __init__(self, config_path: str):
@@ -40,26 +45,31 @@ class FileMonitor:
         if DEBUG: print(f"[+] Found {len(matches)} matches for {config.title} : \n{'\n'.join(matches)}")
         return [config.url_to_append + match for match in matches]
 
-    def check_js_content(self, js_url: str, regex_attr: str) -> Optional[str]:
-        content = requests.get(js_url).text
+    def check_js_content(self, js_url: str, regex_attr: str, custom_header: dict) -> Optional[str]:
+        content = self.get_with_custom_headers(js_url, custom_header)
         if re.search(regex_attr, content):
             if DEBUG: print(f"[+] Found pattern '{regex_attr}' in {js_url}")
             self.current_js_url = js_url
             return content
         return None
+    
+    def get_with_custom_headers(self, url: str, header: dict[str]) -> str:
+        if not header:
+            return requests.get(url).text
+        return requests.get(url, headers=header).text
 
     def get_file_content(self, config: FileConfig) -> str:
 
         ## check if the file is static
         if config.is_static:
             self.current_js_url = config.url
-            return requests.get(config.url).text
+            return self.get_with_custom_headers(config.url, config.custom_header)
 
-        page = requests.get(config.url).text
+        page = self.get_with_custom_headers(config.url, config.custom_header)
         js_urls = self.find_js_files(page, config)
         
         for js_url in js_urls:
-            content = self.check_js_content(js_url, config.regex_attribute)
+            content = self.check_js_content(js_url, config.regex_attribute,config.custom_header)
             if content:
                 return content
         return ""
@@ -95,11 +105,14 @@ time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
     def check_changes(self) -> None:
         for file in self.files:
+            if DEBUG : print(f"[+] Processing target    : {file.title}")
+            if DEBUG : print(f"[+] url                  : {file.url}")
+            if DEBUG : print(f"[+] custom header        : {file.custom_header}")
             local_path = self.js_dir / f"{file.title}.js"
             remote_content = self.get_file_content(file)
             
             if not remote_content:
-                if DEBUG : print(f"Warning: Target JS not found for {file.title}")
+                if DEBUG : print(f"[!] Warning: Target JS not found for {file.title}")
                 continue
 
             if not local_path.exists():
@@ -117,6 +130,8 @@ time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 self.report(local_content, remote_content, file.title)
                 with open(local_path, 'w', encoding='utf-8') as f:
                     f.write(remote_content)
+            else:
+                if DEBUG : print(f"[!] No changes detected for {file.title}\n")
 
 
 def main():

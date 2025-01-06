@@ -1,10 +1,10 @@
 [
   {
-    "title": "",
+    "title": "Test PLannthat",
     "is_static": true,
-    "url": "",
-    "regex_attribute": "",
-    "regex_js": "",
-    "url_to_append": ""
+    "url": "http://callback.0xdead4f.com",
+    "custom_header": {
+      "User-Agent": "Test"
+    }
   }
 ]

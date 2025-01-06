@@ -2,7 +2,7 @@
 
 ---
 
-JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout. 
+JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout.
 
 > But in practice , i personally used this tool not just for javascript file , but also for other remote static file.
 
@@ -25,29 +25,31 @@ pip install -r requirements.txt
 
 3. Configure the `monitor.json` file
 
-There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed. But all attribute need to be provided.
+There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed.
 
 ```json
 {
-      // Static JavaScript file configuration
-      "title": "Main Application JS",                    // Identifier for the file, will be used as filename
-      "is_static": true,                                 // Direct URL to JS file
-      "url": "https://example.com/static/app.js",
+  // Identifier for the file, will be used as filename
+  "title": "Main Application JS",
 
-      // if is_static set to true, attribute below is not used but still must be provided
-      "regex_attribute": null,
-      "url_to_append": "",
-      "regex_js": ""
-    },
-    {
-      // Dynamic JavaScript file configuration
-      "title": "Dynamic Module JS",                      // Identifier for monitoring
-      "is_static": false,                                // File requires scraping from webpage
-      "url": "https://example.com/index.html",          // URL of the webpage containing the script
-      "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",  // Pattern to find script tags
-      "url_to_append": "https://example.com",           // Base URL for completing relative paths
-      "regex_attribute": "specific_function_name or Variable"        // Pattern to identify correct script content
-    }
+  // True for direct URL to JS file or False for scan an webpage for dynamic js
+  "is_static": true,
+
+  // URL of the webpage containing the script
+  "url": "https://example.com/static/app.js",
+
+  // Pattern to find script tags
+  "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
+
+  // Base URL for completing relative paths
+  "url_to_append": "https://example.com",
+
+  // Pattern to identify correct script content
+  "regex_attribute": "specific_function_name or Variable",
+
+  // Custom header for the every request
+  "custom_header": {}
+}
 ```
 
 4. Run the app
@@ -63,11 +65,16 @@ python jswatch.py
 Use this when you have a direct URL to the JavaScript file.
 
 ```json
-{
-  "title": "Main Script",
-  "is_static": true,
-  "url": "https://example.com/main.js"
-}
+[
+  {
+    "title": "Main Script",
+    "is_static": true,
+    "url": "https://example.com/main.js",
+    "custom_header": {
+      "Cookie": "session=admin"
+    }
+  }
+]
 ```
 
 ### Dynamic JavaScript File
@@ -75,14 +82,47 @@ Use this when you have a direct URL to the JavaScript file.
 Use this when the JavaScript file needs to be found within a webpage.
 
 ```json
-{
-  "title": "Dynamic Script",
-  "is_static": false,
-  "url": "https://example.com/page.html",
-  "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
-  "url_to_append": "https://example.com",
-  "regex_attribute": "specific_content"
-}
+[
+  {
+    "title": "Dynamic Script",
+    "is_static": false,
+    "url": "https://example.com/page.html",
+    "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
+    "url_to_append": "https://example.com",
+    "regex_attribute": "specific_content",
+    "custom_header": {
+      "Cookie": "session=admin"
+    }
+  }
+]
+```
+
+### Multiple javascript configuration
+
+Use this when you need to scan multiple pages or javascript file
+
+```json
+[
+  {
+    "title": "Dynamic Script",
+    "is_static": false,
+    "url": "https://example.com/page.html",
+    "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
+    "url_to_append": "https://example.com",
+    "regex_attribute": "specific_content",
+    "custom_header": {
+      "Cookie": "session=admin"
+    }
+  },
+  {
+    "title": "Main Script",
+    "is_static": true,
+    "url": "https://example.com/main.js",
+    "custom_header": {
+      "Cookie": "session=admin"
+    }
+  }
+]
 ```
 
 ## How It Works
@@ -91,7 +131,7 @@ Use this when the JavaScript file needs to be found within a webpage.
 
    - Creates ./js directory
    - Downloads initial versions of files
-   - Saves them as baselines named base on `title` on the configuration
+   - Saves them as baselines named base on `title` on the configuration on `./js` directory
 
 2. Monitoring:
 
