@@ -1,8 +1,8 @@
 [
   {
-    "title": "Test PLannthat",
+    "title": "Test",
     "is_static": true,
-    "url": "http://callback.0xdead4f.com",
+    "url": "http://test.0xdead4f.com",
     "custom_header": {
       "User-Agent": "Test"
     }
