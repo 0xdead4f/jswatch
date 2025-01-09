@@ -151,7 +151,7 @@ Use this when you need to scan multiple pages or javascript file
 
 This configuration is used if target javascript name or url need multiple step to obtain.
 
-`````json
+```json
 [
   {
     "title": "Test multiple step",
@@ -167,6 +167,7 @@ This configuration is used if target javascript name or url need multiple step t
     }
   }
 ]
+```
 
 ## How It Works
 
@@ -201,7 +202,8 @@ time : 2025-01-05 12:34:56
 ```diff
 - old code
 + new code
-`````
+```
+````
 
 ```
 
