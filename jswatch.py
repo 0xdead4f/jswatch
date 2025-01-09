@@ -24,6 +24,9 @@ class FileConfig:
     url_to_append: Optional[str] = None
     regex_attribute: Optional[str] = None
     custom_header: Optional[dict[str]] = None
+    is_multiple_step: Optional[bool] = False
+    next_step: Optional['FileConfig'] = None
+    
 
 class FileMonitor:
     def __init__(self, config_path: str):
@@ -51,6 +54,7 @@ class FileMonitor:
             if DEBUG: print(f"[+] Found pattern '{regex_attr}' in {js_url}")
             self.current_js_url = js_url
             return content
+        if DEBUG: print(f"[!] Pattern '{regex_attr}' not found in {js_url}")
         return None
     
     def get_with_custom_headers(self, url: str, header: dict[str]) -> str:
@@ -64,10 +68,28 @@ class FileMonitor:
         if config.is_static:
             self.current_js_url = config.url
             return self.get_with_custom_headers(config.url, config.custom_header)
+        
+        if config.is_multiple_step:
+            page = self.get_with_custom_headers(config.url, config.custom_header)
+            js_urls = self.find_js_files(page, config)
+            for js_url in js_urls:
+                content = self.check_js_content(js_url, config.regex_attribute,config.custom_header)
+                if content:
+                    regex_value = re.search(config.regex_attribute, content)
+                    if not regex_value:
+                        if DEBUG: print(f"[!] Regex not found")
+                        return ""
+                    if DEBUG: print(f"[+] Found regex value : {regex_value.group(1)}")
+                    regex_attribute = regex_value.group(1)
+                    config.url = config.next_step["url_to_append"].format(regex_attribute=regex_attribute)
+                    if DEBUG: print(f"[+] Get js on this url : {config.url}")
+                    content = self.check_js_content(config.url, config.next_step["regex_attribute"],config.custom_header)
+                    if content:
+                        return content
+                    return ""
 
         page = self.get_with_custom_headers(config.url, config.custom_header)
         js_urls = self.find_js_files(page, config)
-        
         for js_url in js_urls:
             content = self.check_js_content(js_url, config.regex_attribute,config.custom_header)
             if content:

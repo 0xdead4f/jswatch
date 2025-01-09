@@ -4,9 +4,13 @@
 
 JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout.
 
-> But in practice , i personally used this tool not just for javascript file , but also for other remote static file.
+Supports :
 
-## Features
+1. Static file path
+2. Dynamic file path
+3. Multiple Step dynamic file path
+
+> But in practice , i personally used this tool not just for javascript file , but also for other remote static file.
 
 ## Installation
 
@@ -35,6 +39,12 @@ There is two type of javascript that can be monitored, static and dynamic. The `
   // True for direct URL to JS file or False for scan an webpage for dynamic js
   "is_static": true,
 
+  // Static file have 2 option , Multiple Step or not
+  // Multiple step means, the value of the js file is inside another js file
+  // so program need to scan 2 times
+  // [DEV] the current version only support 2 step
+  "is_multiple_step": true,
+
   // URL of the webpage containing the script
   "url": "https://example.com/static/app.js",
 
@@ -45,10 +55,22 @@ There is two type of javascript that can be monitored, static and dynamic. The `
   "url_to_append": "https://example.com",
 
   // Pattern to identify correct script content
+  // this regex is used as getting value from javascript if
+  // "is_multiple_step" set to True
   "regex_attribute": "specific_function_name or Variable",
 
   // Custom header for the every request
-  "custom_header": {}
+  "custom_header": {},
+
+  // the Next_step is used when "is_multiple_step" is set to True
+  "next_step": {
+    // this attribute is used to craft url from given regex value
+    // user `{regex_attribute}` to format the result of the regex
+    "url_to_append": "https://example.com/_nuxt/{regex_attribute}.js",
+
+    // Next regex to determine the current javascript is the right one
+    "regex_attribute": "SPECIFIC_FUNCTION_OR_STRING"
+  }
 }
 ```
 
@@ -125,6 +147,27 @@ Use this when you need to scan multiple pages or javascript file
 ]
 ```
 
+### If multiple step needed to obtain target javascript url
+
+This configuration is used if target javascript name or url need multiple step to obtain.
+
+`````json
+[
+  {
+    "title": "Test multiple step",
+    "is_static": false,
+    "is_multiple_step": true,
+    "url": "https://example.com/home/",
+    "regex_js": "<script.*?src=\"(.*?\\.js)\".*?>",
+    "url_to_append": "https://example.com",
+    "regex_attribute": "REGEX_TO_OBTAIN_SOME_VALUE",
+    "next_step": {
+      "url_to_append": "https://example.com/_nuxt/{regex_attribute}.js",
+      "regex_attribute": "SPECIFIC_CONTENT_OR_STRING"
+    }
+  }
+]
+
 ## How It Works
 
 1. First Run:
@@ -158,8 +201,9 @@ time : 2025-01-05 12:34:56
 ```diff
 - old code
 + new code
+`````
+
 ```
-````
 
 ## Tips
 
@@ -176,6 +220,11 @@ time : 2025-01-05 12:34:56
 3. Use `DEBUG` mode
    - set `DEBUG = True` on `jswatch.py` to make more verbose output like regex match
 
+## Next development idea
+
+1. Add multiple step request
+2. Add handler if the file already not accesible
+
 ## Contributing 🤝
 
 1. Fork the repository
@@ -187,3 +236,4 @@ time : 2025-01-05 12:34:56
 ## License 📄
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```
