@@ -125,7 +125,7 @@ time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
         # Optional: Save to file
         report_path = self.js_dir / f"{title}_changes.md"
-        with open(report_path, 'a', encoding='utf-8') as f:
+        with open(report_path, 'w', encoding='utf-8') as f:
             f.write(f"\n{report}\n")
 
     def check_changes(self) -> None:
