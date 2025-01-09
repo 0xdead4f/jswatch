@@ -27,7 +27,7 @@ cd jswatch
 pip install -r requirements.txt
 ```
 
-3. Configure the `monitor.json` file
+3. Create `monitor.json` configuration file.
 
 There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed.
 
