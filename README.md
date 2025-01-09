@@ -31,47 +31,49 @@ pip install -r requirements.txt
 
 There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed.
 
-```json
-{
-  // Identifier for the file, will be used as filename
-  "title": "Main Application JS",
+```javascript
+[
+  {
+    // Identifier for the file, will be used as filename
+    title: "Main Application JS",
 
-  // True for direct URL to JS file or False for scan an webpage for dynamic js
-  "is_static": true,
+    // True for direct URL to JS file or False for scan an webpage for dynamic js
+    is_static: true,
 
-  // Static file have 2 option , Multiple Step or not
-  // Multiple step means, the value of the js file is inside another js file
-  // so program need to scan 2 times
-  // [DEV] the current version only support 2 step
-  "is_multiple_step": true,
+    // Static file have 2 option , Multiple Step or not
+    // Multiple step means, the value of the js file is inside another js file
+    // so program need to scan 2 times
+    // [DEV] the current version only support 2 step
+    is_multiple_step: true,
 
-  // URL of the webpage containing the script
-  "url": "https://example.com/static/app.js",
+    // URL of the webpage containing the script
+    url: "https://example.com/static/app.js",
 
-  // Pattern to find script tags
-  "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
+    // Pattern to find script tags
+    regex_js: '<script.*?src="(/static/.*?\\.js)".*?>',
 
-  // Base URL for completing relative paths
-  "url_to_append": "https://example.com",
+    // Base URL for completing relative paths
+    url_to_append: "https://example.com",
 
-  // Pattern to identify correct script content
-  // this regex is used as getting value from javascript if
-  // "is_multiple_step" set to True
-  "regex_attribute": "specific_function_name or Variable",
+    // Pattern to identify correct script content
+    // this regex is used as getting value from javascript if
+    // "is_multiple_step" set to True
+    regex_attribute: "specific_function_name or Variable",
 
-  // Custom header for the every request
-  "custom_header": {},
+    // Custom header for the every request
+    custom_header: {},
 
-  // the Next_step is used when "is_multiple_step" is set to True
-  "next_step": {
-    // this attribute is used to craft url from given regex value
-    // user `{regex_attribute}` to format the result of the regex
-    "url_to_append": "https://example.com/_nuxt/{regex_attribute}.js",
+    // the Next_step is used when "is_multiple_step" is set to True
+    next_step: {
+      // this attribute is used to craft url from given regex value
+      // user `{regex_attribute}` to format the result of the regex
+      url_to_append: "https://example.com/_nuxt/{regex_attribute}.js",
 
-    // Next regex to determine the current javascript is the right one
-    "regex_attribute": "SPECIFIC_FUNCTION_OR_STRING"
-  }
-}
+      // Next regex to determine the current javascript is the right one
+      regex_attribute: "SPECIFIC_FUNCTION_OR_STRING",
+    },
+  },
+];
 ```
 
 4. Run the app
