@@ -39,9 +39,12 @@ class FileMonitor:
         self.reports = []
 
     def load_config(self) -> None:
-        with open(self.config_path) as f:
-            data = json.load(f)
-            self.files = [FileConfig(**item) for item in data]
+        try:
+            with open(self.config_path) as f:
+                data = json.load(f)
+                self.files = [FileConfig(**item) for item in data]
+        except FileNotFoundError:
+            print(f"[!] Error: Config file not found at {self.config_path}")
 
     def find_js_files(self, html_content: str, config: FileConfig) -> List[str]:
         matches = re.findall(config.regex_js, html_content)
