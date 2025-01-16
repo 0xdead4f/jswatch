@@ -207,8 +207,6 @@ time : 2025-01-05 12:34:56
 ```
 ````
 
-```
-
 ## Tips
 
 1. Testing Your Regex:
@@ -220,14 +218,15 @@ time : 2025-01-05 12:34:56
 
    - Verify URL accessibility
    - Confirm regex patterns match target scripts
+   - If you are monitoring packed javascript , make sure the indentifier regex is a static String (becuase the function name probably will change)
 
 3. Use `DEBUG` mode
    - set `DEBUG = True` on `jswatch.py` to make more verbose output like regex match
 
 ## Next development idea
 
-1. Add multiple step request
-2. Add handler if the file already not accesible
+1. Add handler if the file already not accesible
+2. Auto Scrap
 
 ## Contributing 🤝
 
