@@ -26,7 +26,8 @@ class FileConfig:
     custom_header: Optional[dict[str]] = None
     is_multiple_step: Optional[bool] = False
     next_step: Optional['FileConfig'] = None
-    
+    max_line_length: Optional[int] = 1000
+    stats: Optional[dict[str]] = None
 
 class FileMonitor:
     def __init__(self, config_path: str):
@@ -64,6 +65,23 @@ class FileMonitor:
         if not header:
             return requests.get(url).text
         return requests.get(url, headers=header).text
+    
+    def check_stats(self, local_content,remote_content) -> str:
+        """"stats":[{
+      "name": "Urls",
+      "regex": "/api/v1/urls/.*"
+    }]"""
+        stats_report = ""
+        for i in self.stats:
+            regex = i["regex"]
+            name = i["name"]
+            local_value = re.findall(regex, local_content)
+            remote_value = re.findall(regex, remote_content)
+            if len(local_value) != len(remote_value):
+                stats_report = stats_report + f"{name} : {len(local_value)} -> {len(remote_value)}\n"
+        if stats_report == "":
+            stats_report = "No stats changes detected"
+        return stats_report
 
     def get_file_content(self, config: FileConfig) -> str:
 
@@ -107,16 +125,28 @@ class FileMonitor:
         local_lines = jsbeautifier.beautify(local_content).splitlines()
         remote_lines = jsbeautifier.beautify(remote_content).splitlines()
         diff = list(difflib.unified_diff(local_lines, remote_lines, n=5))
+
+        if self.stats:
+            stats_report = self.check_stats(local_content,remote_content)
         
         changed_lines = []
         for line in diff[2:]:  # Skip the first two lines of unified diff output
             if line.startswith('+') or line.startswith('-'):
                 changed_lines.extend([line])
         
+        # eliminating line that longer than self.max_line_length
+        for i in changed_lines:
+            if len(i) > self.max_line_length:
+                changed_lines.remove(i)
+        
         report = f"""## JSwatch : new change for `{title}`
 url : {self.current_js_url}
 time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
+### Stats
+{stats_report}
+
+### Changes
 ```diff
 {'\n'.join(f"{line[0]} {line[1:]}" for line in changed_lines)}
 ```\n"""
@@ -137,7 +167,7 @@ time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             remote_content = self.get_file_content(file)
             
             if not remote_content:
-                if DEBUG : print(f"[!] Warning: Target JS not found for {file.title}")
+                print(f"[!] Warning: Target JS not found for {file.title}")
                 continue
 
             if not local_path.exists():
