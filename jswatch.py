@@ -26,7 +26,7 @@ class FileConfig:
     custom_header: Optional[dict[str]] = None
     is_multiple_step: Optional[bool] = False
     next_step: Optional['FileConfig'] = None
-    max_line_length: Optional[int] = 1000
+    max_line_length: Optional[int] = 500
     stats: Optional[dict[str]] = None
 
 class FileMonitor:
@@ -66,13 +66,11 @@ class FileMonitor:
             return requests.get(url).text
         return requests.get(url, headers=header).text
     
-    def check_stats(self, local_content,remote_content) -> str:
-        """"stats":[{
-      "name": "Urls",
-      "regex": "/api/v1/urls/.*"
-    }]"""
+    def check_stats(self, local_content,remote_content,config: FileConfig) -> str:
         stats_report = ""
-        for i in self.stats:
+        if not config.stats:
+            return "Stats Not Specified"
+        for i in config.stats:
             regex = i["regex"]
             name = i["name"]
             local_value = re.findall(regex, local_content)
@@ -80,7 +78,7 @@ class FileMonitor:
             if len(local_value) != len(remote_value):
                 stats_report = stats_report + f"{name} : {len(local_value)} -> {len(remote_value)}\n"
         if stats_report == "":
-            stats_report = "No stats changes detected"
+            stats_report = "None stats changes"
         return stats_report
 
     def get_file_content(self, config: FileConfig) -> str:
@@ -120,14 +118,13 @@ class FileMonitor:
     def calculate_hash(self, content: str) -> str:
         return hashlib.md5(content.encode()).hexdigest()
 
-    def report(self, local_content: str, remote_content: str, title: str) -> None:
+    def report(self, local_content: str, remote_content: str, title: str, config: FileConfig) -> None:
 
         local_lines = jsbeautifier.beautify(local_content).splitlines()
         remote_lines = jsbeautifier.beautify(remote_content).splitlines()
         diff = list(difflib.unified_diff(local_lines, remote_lines, n=5))
 
-        if self.stats:
-            stats_report = self.check_stats(local_content,remote_content)
+        stats_report = self.check_stats(local_content, remote_content, config)
         
         changed_lines = []
         for line in diff[2:]:  # Skip the first two lines of unified diff output
@@ -136,7 +133,7 @@ class FileMonitor:
         
         # eliminating line that longer than self.max_line_length
         for i in changed_lines:
-            if len(i) > self.max_line_length:
+            if len(i) > config.max_line_length:
                 changed_lines.remove(i)
         
         report = f"""## JSwatch : new change for `{title}`
@@ -182,7 +179,7 @@ time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             remote_hash = self.calculate_hash(remote_content)
 
             if local_hash != remote_hash:
-                self.report(local_content, remote_content, file.title)
+                self.report(local_content, remote_content, file.title, config=file)
                 with open(local_path, 'w', encoding='utf-8') as f:
                     f.write(remote_content)
             else:

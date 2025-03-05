@@ -31,7 +31,7 @@ pip install -r requirements.txt
 
 There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed.
 
-```javascript
+```java
 [
   {
     // Identifier for the file, will be used as filename
@@ -72,8 +72,17 @@ There is two type of javascript that can be monitored, static and dynamic. The `
       // Next regex to determine the current javascript is the right one
       regex_attribute: "SPECIFIC_FUNCTION_OR_STRING",
     },
+
+    // Stats to be collected, the result will be appended in report
+    // the current stat will be on ./js/{title}.stats.json
+    stats: [
+      {
+        name: "Urls",
+        regex: "/api/v1/urls/.*",
+      }
+    ]
   },
-];
+]
 ```
 
 4. Run the app
@@ -189,6 +198,7 @@ This configuration is used if target javascript name or url need multiple step t
 3. Change Detection:
    - Formats report in Markdown
    - writen into stdout using `print()`
+   - Check a stats based on regex
    - Saves report history on `./js/{title}.md`
 
 ## Reports
@@ -239,4 +249,7 @@ time : 2025-01-05 12:34:56
 ## License 📄
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+```
+
 ```
