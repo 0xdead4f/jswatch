@@ -1,0 +1,71 @@
+monitors:
+  # Example 1: Static JavaScript file
+  - title: "Static Main Script"
+    headers:
+      Cookie: "session=admin"
+    steps:
+      - url: "https://example.com/main.js"
+    max_line_length: 500
+
+  # Example 2: Dynamic JavaScript file (single step extraction)
+  - title: "Dynamic Script"
+    headers:
+      User-Agent: "Mozilla/5.0"
+    steps:
+      - url: "https://example.com/page.html"
+        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      - url: "{step0}"
+        validate_regex: "specific_function_name"
+
+  # Example 3: Multi-step JavaScript discovery
+  - title: "Multi-Step Nuxt App"
+    steps:
+      # Step 1: Fetch homepage and extract JS file path
+      - url: "https://example.com/home/"
+        extract_regex: '<script.*?src="(.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      
+      # Step 2: Fetch the JS file and extract hash/version
+      - url: "{step0}"
+        extract_regex: "hash=['\"]([a-f0-9]+)['\"]"
+        url_template: "https://example.com/_nuxt/{extracted}.js"
+      
+      # Step 3: Fetch final JS file and validate
+      - url: "{step1}"
+        validate_regex: "SPECIFIC_FUNCTION_NAME"
+
+  # Example 4: With statistics tracking
+  - title: "API Endpoints Tracker"
+    steps:
+      - url: "https://example.com/app.js"
+    stats:
+      - name: "API Endpoints"
+        regex: "/api/v[0-9]+/.*"
+      - name: "WebSocket URLs"
+        regex: "wss?://[^\\s\"']+"
+
+  # Example 5: Complex multi-step with validation
+  - title: "Complex Multi-Step"
+    headers:
+      Authorization: "Bearer token123"
+    steps:
+      # Fetch initial page
+      - url: "https://example.com/app"
+        extract_regex: 'src="([^"]*\\.js)"'
+        url_template: "https://example.com{extracted}"
+      
+      # Find loader script
+      - url: "{step0}"
+        extract_regex: "loader\\.js"
+        url_template: "https://example.com/scripts/{extracted}"
+      
+      # Extract bundle identifier
+      - url: "{step1}"
+        extract_regex: "bundleId=['\"]([^'\"]+)['\"]"
+        url_template: "https://example.com/bundles/{extracted}.js"
+      
+      # Final validation
+      - url: "{step2}"
+        validate_regex: "APP_INITIALIZED"
+

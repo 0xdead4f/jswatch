@@ -2,15 +2,13 @@
 
 ---
 
-JSWatch is a lightweight and efficient JavaScript file monitoring tool that tracks changes in remote JavaScript files. It provides automatic diff generation in markdown format written to stdout.
+JSWatch is a lightweight and efficient remote JavaScript & web page monitoring tool that tracks changes. It provides automatic diff generation in markdown format written to stdout.
 
 Supports :
 
 1. Static file path
 2. Dynamic file path
-3. Multiple Step dynamic file path
-
-> But in practice , i personally used this tool not just for javascript file , but also for other remote static file.
+3. Multiple Step dynamic file path (unlimited steps)
 
 ## Installation
 
@@ -27,62 +25,25 @@ cd jswatch
 pip install -r requirements.txt
 ```
 
-3. Create `monitor.json` configuration file.
+3. Create `monitor.yaml` configuration file.
 
-There is two type of javascript that can be monitored, static and dynamic. The `is_static` attribute that indicate how the scanning approach. if Set to `True` it will need addition attribute value to proceed.
+JSWatch uses a unified step-based configuration system. Each monitor entry defines a series of steps that are executed in sequence to fetch the target file. Steps can fetch URLs, extract values using regex, validate content, and construct URLs from previous step results.
 
-```java
-[
-  {
-    // Identifier for the file, will be used as filename
-    title: "Main Application JS",
-
-    // True for direct URL to JS file or False for scan an webpage for dynamic js
-    is_static: true,
-
-    // Static file have 2 option , Multiple Step or not
-    // Multiple step means, the value of the js file is inside another js file
-    // so program need to scan 2 times
-    // [DEV] the current version only support 2 step
-    is_multiple_step: true,
-
-    // URL of the webpage containing the script
-    url: "https://example.com/static/app.js",
-
-    // Pattern to find script tags
-    regex_js: '<script.*?src="(/static/.*?\\.js)".*?>',
-
-    // Base URL for completing relative paths
-    url_to_append: "https://example.com",
-
-    // Pattern to identify correct script content
-    // this regex is used as getting value from javascript if
-    // "is_multiple_step" set to True
-    regex_attribute: "specific_function_name or Variable",
-
-    // Custom header for the every request
-    custom_header: {},
-
-    // the Next_step is used when "is_multiple_step" is set to True
-    next_step: {
-      // this attribute is used to craft url from given regex value
-      // user `{regex_attribute}` to format the result of the regex
-      url_to_append: "https://example.com/_nuxt/{regex_attribute}.js",
-
-      // Next regex to determine the current javascript is the right one
-      regex_attribute: "SPECIFIC_FUNCTION_OR_STRING",
-    },
-
-    // Stats to be collected, the result will be appended in report
-    // the current stat will be on ./js/{title}.stats.json
-    stats: [
-      {
-        name: "Urls",
-        regex: "/api/v1/urls/.*",
-      }
-    ]
-  },
-]
+```yaml
+monitors:
+  - title: "Main Application JS"
+    headers:
+      Cookie: "session=admin"
+    steps:
+      - url: "https://example.com/home/"
+        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      - url: "{step0}"
+        validate_regex: "specific_function_name"
+    stats:
+      - name: "Urls"
+        regex: "/api/v1/urls/.*"
+    max_line_length: 500
 ```
 
 4. Run the app
@@ -91,115 +52,150 @@ There is two type of javascript that can be monitored, static and dynamic. The `
 python jswatch.py
 ```
 
+For debug output:
+
+```bash
+python jswatch.py --debug
+```
+
 ## Configuration Types
 
 ### Static JavaScript File
 
 Use this when you have a direct URL to the JavaScript file.
 
-```json
-[
-  {
-    "title": "Main Script",
-    "is_static": true,
-    "url": "https://example.com/main.js",
-    "custom_header": {
-      "Cookie": "session=admin"
-    }
-  }
-]
+```yaml
+monitors:
+  - title: "Main Script"
+    headers:
+      Cookie: "session=admin"
+    steps:
+      - url: "https://example.com/main.js"
 ```
 
 ### Dynamic JavaScript File
 
 Use this when the JavaScript file needs to be found within a webpage.
 
-```json
-[
-  {
-    "title": "Dynamic Script",
-    "is_static": false,
-    "url": "https://example.com/page.html",
-    "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
-    "url_to_append": "https://example.com",
-    "regex_attribute": "specific_content",
-    "custom_header": {
-      "Cookie": "session=admin"
-    }
-  }
-]
+```yaml
+monitors:
+  - title: "Dynamic Script"
+    headers:
+      Cookie: "session=admin"
+    steps:
+      - url: "https://example.com/page.html"
+        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      - url: "{step0}"
+        validate_regex: "specific_content"
 ```
 
-### Multiple javascript configuration
+### Multiple Step Configuration
 
-Use this when you need to scan multiple pages or javascript file
+Use this when you need multiple steps to obtain the target JavaScript URL. Steps are executed sequentially, and each step can reference results from previous steps using placeholders like `{step0}`, `{step1}`, etc.
 
-```json
-[
-  {
-    "title": "Dynamic Script",
-    "is_static": false,
-    "url": "https://example.com/page.html",
-    "regex_js": "<script.*?src=\"(/static/.*?\\.js)\".*?>",
-    "url_to_append": "https://example.com",
-    "regex_attribute": "specific_content",
-    "custom_header": {
-      "Cookie": "session=admin"
-    }
-  },
-  {
-    "title": "Main Script",
-    "is_static": true,
-    "url": "https://example.com/main.js",
-    "custom_header": {
-      "Cookie": "session=admin"
-    }
-  }
-]
+```yaml
+monitors:
+  - title: "Multi-Step JS"
+    steps:
+      - url: "https://example.com/home/"
+        extract_regex: '<script.*?src="(.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      - url: "{step0}"
+        extract_regex: "REGEX_VALUE"
+        url_template: "https://example.com/_nuxt/{extracted}.js"
+      - url: "{step1}"
+        validate_regex: "SPECIFIC_CONTENT_OR_STRING"
 ```
 
-### If multiple step needed to obtain target javascript url
+### Multiple Monitors
 
-This configuration is used if target javascript name or url need multiple step to obtain.
+You can monitor multiple files by adding multiple entries to the `monitors` array:
 
-```json
-[
-  {
-    "title": "Test multiple step",
-    "is_static": false,
-    "is_multiple_step": true,
-    "url": "https://example.com/home/",
-    "regex_js": "<script.*?src=\"(.*?\\.js)\".*?>",
-    "url_to_append": "https://example.com",
-    "regex_attribute": "REGEX_TO_OBTAIN_SOME_VALUE",
-    "next_step": {
-      "url_to_append": "https://example.com/_nuxt/{regex_attribute}.js",
-      "regex_attribute": "SPECIFIC_CONTENT_OR_STRING"
-    }
-  }
-]
+```yaml
+monitors:
+  - title: "Dynamic Script"
+    steps:
+      - url: "https://example.com/page.html"
+        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
+        url_template: "https://example.com{extracted}"
+      - url: "{step0}"
+        validate_regex: "specific_content"
+
+  - title: "Main Script"
+    headers:
+      Cookie: "session=admin"
+    steps:
+      - url: "https://example.com/main.js"
 ```
+
+## Step Configuration Reference
+
+Each step in the `steps` array supports the following options:
+
+- **`url`** (required): The URL to fetch. Can contain placeholders like `{step0}`, `{step1}`, `{extracted}` that will be replaced with values from previous steps.
+
+- **`extract_regex`** (optional): A regex pattern to extract a value from the fetched content. The first capture group (or full match if no groups) is stored and can be referenced in subsequent steps using `{extracted}` or `{stepN}`.
+
+- **`url_template`** (optional): A URL template that uses extracted values. If provided, the URL will be resolved using this template after extraction. Placeholders like `{extracted}` or `{step0}` will be replaced.
+
+- **`validate_regex`** (optional): A regex pattern to validate that the fetched content matches. If the content doesn't match, the step fails and the monitor is skipped.
+
+## Monitor Configuration Reference
+
+Each monitor entry supports:
+
+- **`title`** (required): Identifier for the file, used as filename for baseline storage.
+
+- **`steps`** (required): Array of step configurations executed in sequence.
+
+- **`headers`** (optional): Custom HTTP headers to send with every request.
+
+- **`stats`** (optional): Array of statistics to track. Each stat has:
+
+  - `name`: Name of the statistic
+  - `regex`: Regex pattern to count matches
+
+- **`max_line_length`** (optional): Maximum line length in diff output (default: 500). Longer lines are excluded from the diff.
 
 ## How It Works
 
-1. First Run:
+1. **First Run:**
 
-   - Creates ./js directory
-   - Downloads initial versions of files
-   - Saves them as baselines named base on `title` on the configuration on `./js` directory
+   - Downloads initial versions of files by executing step pipelines
+   - Saves them as baselines named based on `title` in the `./js` directory
 
-2. Monitoring:
+2. **Monitoring:**
 
    - Checks files every time you run the program
-   - Downloads current versions
-   - Compares with baselines
-   - Generates dif report for changes
+   - Executes step pipelines to fetch current versions
+   - Compares with baselines using MD5 hashing
+   - Generates diff report for changes
 
-3. Change Detection:
+3. **Change Detection:**
    - Formats report in Markdown
-   - writen into stdout using `print()`
-   - Check a stats based on regex
-   - Saves report history on `./js/{title}.md`
+   - Written to stdout using `print()`
+   - Checks statistics based on regex patterns
+   - Saves report history to `./js/{title}_changes.md`
+
+## Step Execution Flow
+
+The step-based pipeline works as follows:
+
+1. **Initialize**: Start with the first step's URL
+2. **Fetch**: Download content from the current URL
+3. **Extract** (if `extract_regex` provided): Extract value(s) using regex and store for next steps
+4. **Resolve** (if `url_template` provided): Construct new URL using extracted values
+5. **Validate** (if `validate_regex` provided): Verify content matches pattern
+6. **Repeat**: Move to next step, using placeholders to reference previous results
+7. **Return**: Final step's content is the target file
+
+### Placeholder Reference
+
+- `{step0}`: Value extracted from step 0
+- `{step1}`: Value extracted from step 1
+- `{stepN}`: Value extracted from step N
+- `{extracted}`: Most recently extracted value
 
 ## Reports
 
@@ -211,6 +207,12 @@ When changes are detected, you'll see reports like this:
 url : https://example.com/script.js
 time : 2025-01-05 12:34:56
 
+### Stats
+
+Urls: 5 -> 7
+
+### Changes
+
 ```diff
 - old code
 + new code
@@ -219,24 +221,29 @@ time : 2025-01-05 12:34:56
 
 ## Tips
 
-1. Testing Your Regex:
+1. **Testing Your Regex:**
 
    - Use Python's regex tester to verify patterns
-   - Test URL construction with url_to_append
+   - Test URL construction with placeholders
+   - Use `--debug` flag to see step-by-step execution
 
-2. Common Issues:
+2. **Common Issues:**
 
    - Verify URL accessibility
-   - Confirm regex patterns match target scripts
-   - If you are monitoring packed javascript , make sure the indentifier regex is a static String (becuase the function name probably will change)
+   - Confirm regex patterns match target content
+   - If monitoring packed JavaScript, make sure the identifier regex uses static strings (function names may change)
+   - Check that placeholders match step indices correctly
 
-3. Use `DEBUG` mode
-   - set `DEBUG = True` on `jswatch.py` to make more verbose output like regex match
+3. **Debug Mode:**
 
-## Next development idea
+   - Run with `--debug` flag: `python jswatch.py --debug`
+   - Shows detailed output including regex matches, extracted values, and URL resolution
 
-1. Add handler if the file already not accesible
-2. Auto Scrap
+4. **Step Design:**
+   - Start simple: one step for static files
+   - Add extraction steps when URLs need to be discovered
+   - Use validation steps to filter out unwanted matches
+   - Test each step incrementally
 
 ## Contributing 🤝
 
@@ -249,7 +256,3 @@ time : 2025-01-05 12:34:56
 ## License 📄
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-
-```
