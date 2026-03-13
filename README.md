@@ -1,15 +1,18 @@
-<div align="center">
-  <img src="logo.png" alt="JSWatch Logo" width="180" />
-  <h1>JSWatch</h1>
-  <p><strong>Monitor remote JavaScript files for changes. Trace through bundlers. Diff structurally.</strong></p>
 
-  [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/0xdead4f/jswatch/pulls)
-  [![JavaScript](https://img.shields.io/badge/JavaScript-ESM-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
-</div>
 
-<br>
+# JSWatch
+
+**Monitor remote JavaScript files for changes. Trace through bundlers. Diff structurally.**
+
+  [Node.js](https://nodejs.org/)
+  [License: MIT](https://opensource.org/licenses/MIT)
+  [PRs Welcome](https://github.com/0xdead4f/jswatch/pulls)
+  [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
+
+
+
+  
+
 
 JSWatch fetches remote JavaScript files, compares them against stored baselines, and generates detailed diff reports. It handles everything from simple static URLs to complex webpack module federation setups where the target file is buried behind multiple layers of indirection.
 
@@ -29,6 +32,8 @@ shop.html → federation-host/index.js → mf-manifest.json → scan 155 chunks 
 
 **Text diff fallback** -- For minified bundles or non-JS files that can't be parsed, falls back to beautified text diff with [js-beautify](https://github.com/beautifier/js-beautify).
 
+**AI agent skill** -- Ships with a built-in [Claude Code](https://claude.ai) skill (`.agent/skills/jswatch/SKILL.md`) that lets AI agents create monitor configs, debug pipelines, and run JSWatch through natural language. Just describe what you want to monitor and the agent handles the YAML, regex, and pipeline setup.
+
 ---
 
 ## Install
@@ -40,6 +45,26 @@ npm install
 ```
 
 Requires **Node.js 18+** (uses built-in `fetch`).
+
+---
+
+## New AI agent skill
+
+JSWatch includes an agent skill at `.agent/skills/jswatch/SKILL.md` for use with [Claude Code](https://claude.ai) or any compatible AI coding agent. The skill gives the agent full context on JSWatch's config format, pipeline steps, common patterns, and debugging — so it can create and troubleshoot monitors on your behalf.
+
+**What the agent can do:**
+
+- Generate monitor YAML configs from a target URL or description
+- Build multi-step pipelines (extract, scan, validate) with correct regex
+- Choose the right diff mode (`text` vs `ast`) for your target
+- Add stats tracking for API endpoints, GraphQL mutations, etc.
+- Debug failing pipelines using the built-in checklist
+
+**Example prompt:**
+
+> "Monitor [https://target.com/admin](https://target.com/admin) for changes to the JS bundle that contains the DeleteItem mutation. It's behind a webpack federation setup."
+
+The agent will create the full YAML config with the pipeline steps, scan logic, validation regex, and AST diffing enabled.
 
 ---
 
@@ -111,29 +136,32 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
 
 ### Monitor fields
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `id` | yes | | Unique name. Becomes the output folder. |
-| `start_url` | yes | | Initial URL to fetch. |
-| `pipeline` | no | | Array of steps: `extract`, `template`, `validate`, `scan`. |
-| `headers` | no | | Custom HTTP headers for all requests. |
-| `stats` | no | | Array of `{name, regex}` to track pattern counts. |
-| `max_line_length` | no | `500` | Max line length in text diffs. |
-| `diff_mode` | no | `"text"` | `"text"` or `"ast"` for structural JS diffing. |
+
+| Field             | Required | Default  | Description                                                |
+| ----------------- | -------- | -------- | ---------------------------------------------------------- |
+| `id`              | yes      |          | Unique name. Becomes the output folder.                    |
+| `start_url`       | yes      |          | Initial URL to fetch.                                      |
+| `pipeline`        | no       |          | Array of steps: `extract`, `template`, `validate`, `scan`. |
+| `headers`         | no       |          | Custom HTTP headers for all requests.                      |
+| `stats`           | no       |          | Array of `{name, regex}` to track pattern counts.          |
+| `max_line_length` | no       | `500`    | Max line length in text diffs.                             |
+| `diff_mode`       | no       | `"text"` | `"text"` or `"ast"` for structural JS diffing.             |
+
 
 ### Pipeline steps
 
-| Field | Description |
-|-------|-------------|
-| `extract` | Regex to extract a value. First capture group `()` is used. |
-| `template` | URL template with `{extracted}` placeholder. Omit to auto-resolve relative URLs. |
-| `validate` | Regex that must match the fetched content, or the step fails. |
-| `scan` | Like `extract` but matches **all** occurrences, fetches each in parallel, returns first passing `validate`. |
+
+| Field      | Description                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `extract`  | Regex to extract a value. First capture group `()` is used.                                                 |
+| `template` | URL template with `{extracted}` placeholder. Omit to auto-resolve relative URLs.                            |
+| `validate` | Regex that must match the fetched content, or the step fails.                                               |
+| `scan`     | Like `extract` but matches **all** occurrences, fetches each in parallel, returns first passing `validate`. |
+
 
 ### Examples
 
-<details>
-<summary><strong>Static file with auth</strong></summary>
+**Static file with auth**
 
 ```yaml
 - id: "admin_js"
@@ -142,10 +170,10 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
     Cookie: "session=abc123"
     Authorization: "Bearer token"
 ```
-</details>
 
-<details>
-<summary><strong>Dynamic extraction from HTML</strong></summary>
+
+
+**Dynamic extraction from HTML**
 
 ```yaml
 - id: "app_bundle"
@@ -155,10 +183,10 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
       template: "https://target.com{extracted}"
     - validate: "initApp"
 ```
-</details>
 
-<details>
-<summary><strong>Multi-step pipeline (Nuxt/Webpack)</strong></summary>
+
+
+**Multi-step pipeline (Nuxt/Webpack)**
 
 ```yaml
 - id: "nuxt_chunk"
@@ -169,10 +197,10 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
       template: "https://target.com/_nuxt/{extracted}.js"
     - validate: "targetFunction"
 ```
-</details>
 
-<details>
-<summary><strong>Scan webpack federation chunks</strong></summary>
+
+
+**Scan webpack federation chunks**
 
 ```yaml
 - id: "federation_target"
@@ -186,10 +214,10 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
       validate: 'mutation DeleteItem\('
   diff_mode: "ast"
 ```
-</details>
 
-<details>
-<summary><strong>Stats tracking</strong></summary>
+
+
+**Stats tracking**
 
 ```yaml
 - id: "api_surface"
@@ -200,7 +228,8 @@ Configs are YAML files in `monitors/`. Each file becomes a **project**, each mon
     - name: "GraphQL Mutations"
       regex: 'mutation [A-Z]\w+\('
 ```
-</details>
+
+
 
 ---
 
