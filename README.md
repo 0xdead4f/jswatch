@@ -1,24 +1,24 @@
+<p align="center">
+  <img src="logo.png" alt="JSWatch Logo" width="100%" />
+</p>
 
+<h1 align="center">JSWatch</h1>
 
-# JSWatch
+<p align="center">
+  <strong>Monitor remote JavaScript files for changes. Trace through bundlers. Diff structurally.</strong>
+</p>
 
-**Monitor remote JavaScript files for changes. Trace through bundlers. Diff structurally.**
+<p align="center">
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white" alt="Node.js" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/0xdead4f/jswatch/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a>
+  <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules"><img src="https://img.shields.io/badge/JavaScript-ESM-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript" /></a>
+  <a href="https://github.com/0xdead4f/jswatch/blob/main/.agent/skills/jswatch/SKILL.md"><img src="https://img.shields.io/badge/AI_Agent-Skill_Included-blueviolet" alt="AI Agent Skill" /></a>
+</p>
 
-  [Node.js](https://nodejs.org/)
-  [License: MIT](https://opensource.org/licenses/MIT)
-  [PRs Welcome](https://github.com/0xdead4f/jswatch/pulls)
-  [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
-
-
-
-  
-
+<br>
 
 JSWatch fetches remote JavaScript files, compares them against stored baselines, and generates detailed diff reports. It handles everything from simple static URLs to complex webpack module federation setups where the target file is buried behind multiple layers of indirection.
-
-```
-shop.html → federation-host/index.js → mf-manifest.json → scan 155 chunks → hit: 4767.e75f73df9a7c683d93bd.js
-```
 
 ---
 
@@ -48,9 +48,11 @@ Requires **Node.js 18+** (uses built-in `fetch`).
 
 ---
 
-## New AI agent skill
+## New: AI Agent Skill : ✨ **Let AI build your monitor configs** ✨
 
-JSWatch includes an agent skill at `.agent/skills/jswatch/SKILL.md` for use with [Claude Code](https://claude.ai) or any compatible AI coding agent. The skill gives the agent full context on JSWatch's config format, pipeline steps, common patterns, and debugging — so it can create and troubleshoot monitors on your behalf.
+📍 `.agent/skills/jswatch/SKILL.md`
+
+Just describe what you want to monitor — the agent handles the YAML, regex, pipeline setup, and debugging.
 
 **What the agent can do:**
 
@@ -62,9 +64,9 @@ JSWatch includes an agent skill at `.agent/skills/jswatch/SKILL.md` for use with
 
 **Example prompt:**
 
-> "Monitor [https://target.com/admin](https://target.com/admin) for changes to the JS bundle that contains the DeleteItem mutation. It's behind a webpack federation setup."
+> *"Monitor https://target.com/admin for changes to the JS bundle that contains the DeleteItem mutation. It's behind a webpack federation setup."*
 
-The agent will create the full YAML config with the pipeline steps, scan logic, validation regex, and AST diffing enabled.
+The agent will create the full YAML config with the pipeline steps, scan logic, validation regex, and AST diffing — ready to run.
 
 ---
 
