@@ -1,0 +1,25 @@
+{
+  "name": "jswatch",
+  "version": "2.0.0",
+  "description": "Monitor remote JavaScript files for changes with diff reporting",
+  "type": "module",
+  "bin": {
+    "jswatch": "./bin/jswatch.js"
+  },
+  "scripts": {
+    "start": "node bin/jswatch.js",
+    "debug": "node bin/jswatch.js --debug",
+    "watch": "node bin/jswatch.js --watch"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "acorn": "^8.14.0",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "diff": "^7.0.0",
+    "js-beautify": "^1.15.4",
+    "js-yaml": "^4.1.0"
+  }
+}

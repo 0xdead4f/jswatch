@@ -1,258 +1,276 @@
-![Logo](logo.png)
+<div align="center">
+  <img src="logo.png" alt="JSWatch Logo" width="180" />
+  <h1>JSWatch</h1>
+  <p><strong>Monitor remote JavaScript files for changes. Trace through bundlers. Diff structurally.</strong></p>
+
+  [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/0xdead4f/jswatch/pulls)
+  [![JavaScript](https://img.shields.io/badge/JavaScript-ESM-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
+</div>
+
+<br>
+
+JSWatch fetches remote JavaScript files, compares them against stored baselines, and generates detailed diff reports. It handles everything from simple static URLs to complex webpack module federation setups where the target file is buried behind multiple layers of indirection.
+
+```
+shop.html → federation-host/index.js → mf-manifest.json → scan 155 chunks → hit: 4767.e75f73df9a7c683d93bd.js
+```
 
 ---
 
-JSWatch is a lightweight and efficient remote JavaScript & web page monitoring tool that tracks changes. It provides automatic diff generation in markdown format written to stdout.
+## What makes it different
 
-Supports :
+**Pipeline engine** -- Chain fetch-extract-fetch steps to follow dynamic script references through HTML pages, manifests, and loaders. Each step feeds the next automatically.
 
-1. Static file path
-2. Dynamic file path
-3. Multiple Step dynamic file path (unlimited steps)
+**Scan step** -- Extract *all* regex matches from a manifest or entry point, fetch each URL in parallel, and find the one containing your target code. Designed for webpack/module federation chunk hunting.
 
-## Installation
+**AST-based diffing** -- Parse JavaScript with [acorn](https://github.com/acornjs/acorn) and diff at the symbol level. Changes are grouped by function, variable, and class -- not just line numbers. Cosmetic changes (whitespace, comments) are ignored.
 
-1. Clone the repository:
+**Text diff fallback** -- For minified bundles or non-JS files that can't be parsed, falls back to beautified text diff with [js-beautify](https://github.com/beautifier/js-beautify).
+
+---
+
+## Install
 
 ```bash
 git clone https://github.com/0xdead4f/jswatch.git
 cd jswatch
+npm install
 ```
 
-2. Install required dependencies:
+Requires **Node.js 18+** (uses built-in `fetch`).
 
-```bash
-pip install -r requirements.txt
-```
+---
 
-3. Create `monitor.yaml` configuration file.
+## Quick start
 
-JSWatch uses a unified step-based configuration system. Each monitor entry defines a series of steps that are executed in sequence to fetch the target file. Steps can fetch URLs, extract values using regex, validate content, and construct URLs from previous step results.
+**1. Create a monitor config:**
 
 ```yaml
+# monitors/target.yaml
 monitors:
-  - title: "Main Application JS"
-    headers:
-      Cookie: "session=admin"
-    steps:
-      - url: "https://example.com/home/"
-        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
-        url_template: "https://example.com{extracted}"
-      - url: "{step0}"
-        validate_regex: "specific_function_name"
+  - id: "main_bundle"
+    start_url: "https://example.com/app.js"
     stats:
-      - name: "Urls"
-        regex: "/api/v1/urls/.*"
-    max_line_length: 500
+      - name: "API Endpoints"
+        regex: "/api/v[0-9]+/.*"
 ```
 
-4. Run the app
+**2. Run:**
 
 ```bash
-python jswatch.py
+node bin/jswatch.js           # normal run
+node bin/jswatch.js --debug   # verbose output
+node bin/jswatch.js --ast     # enable AST diffing globally
 ```
 
-For debug output:
+First run creates a baseline. Subsequent runs detect and report changes.
+
+**3. Output:**
+
+```
+projects/
+└── target/
+    └── main_bundle/
+        ├── baseline.js       # stored snapshot
+        └── changes.md        # appended diff reports
+```
+
+---
+
+## CLI options
+
+```
+Usage: jswatch [options]
+
+Options:
+  -d, --debug              verbose output
+  -m, --monitors-dir <path> monitors directory (default: "./monitors")
+  -w, --watch              continuous monitoring mode
+  -i, --interval <seconds> watch interval (default: 300)
+  -f, --filter <pattern>   only run monitors matching id pattern
+  --ast                    enable AST diffing globally
+  -V, --version            output the version number
+  -h, --help               display help for command
+```
+
+Watch mode runs checks on a loop until interrupted:
 
 ```bash
-python jswatch.py --debug
+node bin/jswatch.js --watch --interval 60 --filter "api_tracker"
 ```
 
-## Configuration Types
+Exit codes: `0` = no changes, `1` = changes detected. Useful for CI/cron.
 
-### Static JavaScript File
+---
 
-Use this when you have a direct URL to the JavaScript file.
+## Configuration
+
+Configs are YAML files in `monitors/`. Each file becomes a **project**, each monitor gets its own output directory.
+
+### Monitor fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `id` | yes | | Unique name. Becomes the output folder. |
+| `start_url` | yes | | Initial URL to fetch. |
+| `pipeline` | no | | Array of steps: `extract`, `template`, `validate`, `scan`. |
+| `headers` | no | | Custom HTTP headers for all requests. |
+| `stats` | no | | Array of `{name, regex}` to track pattern counts. |
+| `max_line_length` | no | `500` | Max line length in text diffs. |
+| `diff_mode` | no | `"text"` | `"text"` or `"ast"` for structural JS diffing. |
+
+### Pipeline steps
+
+| Field | Description |
+|-------|-------------|
+| `extract` | Regex to extract a value. First capture group `()` is used. |
+| `template` | URL template with `{extracted}` placeholder. Omit to auto-resolve relative URLs. |
+| `validate` | Regex that must match the fetched content, or the step fails. |
+| `scan` | Like `extract` but matches **all** occurrences, fetches each in parallel, returns first passing `validate`. |
+
+### Examples
+
+<details>
+<summary><strong>Static file with auth</strong></summary>
 
 ```yaml
-monitors:
-  - title: "Main Script"
-    headers:
-      Cookie: "session=admin"
-    steps:
-      - url: "https://example.com/main.js"
+- id: "admin_js"
+  start_url: "https://target.com/admin.js"
+  headers:
+    Cookie: "session=abc123"
+    Authorization: "Bearer token"
 ```
+</details>
 
-### Dynamic JavaScript File
-
-Use this when the JavaScript file needs to be found within a webpage.
+<details>
+<summary><strong>Dynamic extraction from HTML</strong></summary>
 
 ```yaml
-monitors:
-  - title: "Dynamic Script"
-    headers:
-      Cookie: "session=admin"
-    steps:
-      - url: "https://example.com/page.html"
-        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
-        url_template: "https://example.com{extracted}"
-      - url: "{step0}"
-        validate_regex: "specific_content"
+- id: "app_bundle"
+  start_url: "https://target.com/"
+  pipeline:
+    - extract: '<script.*?src="([^"]+\.js)"'
+      template: "https://target.com{extracted}"
+    - validate: "initApp"
 ```
+</details>
 
-### Multiple Step Configuration
-
-Use this when you need multiple steps to obtain the target JavaScript URL. Steps are executed sequentially, and each step can reference results from previous steps using placeholders like `{step0}`, `{step1}`, etc.
+<details>
+<summary><strong>Multi-step pipeline (Nuxt/Webpack)</strong></summary>
 
 ```yaml
-monitors:
-  - title: "Multi-Step JS"
-    steps:
-      - url: "https://example.com/home/"
-        extract_regex: '<script.*?src="(.*?\\.js)".*?>'
-        url_template: "https://example.com{extracted}"
-      - url: "{step0}"
-        extract_regex: "REGEX_VALUE"
-        url_template: "https://example.com/_nuxt/{extracted}.js"
-      - url: "{step1}"
-        validate_regex: "SPECIFIC_CONTENT_OR_STRING"
+- id: "nuxt_chunk"
+  start_url: "https://target.com/"
+  pipeline:
+    - extract: '<script.*?src="(/_nuxt/[^"]+\.js)"'
+    - extract: 'buildId="([a-f0-9]+)"'
+      template: "https://target.com/_nuxt/{extracted}.js"
+    - validate: "targetFunction"
 ```
+</details>
 
-### Multiple Monitors
-
-You can monitor multiple files by adding multiple entries to the `monitors` array:
+<details>
+<summary><strong>Scan webpack federation chunks</strong></summary>
 
 ```yaml
-monitors:
-  - title: "Dynamic Script"
-    steps:
-      - url: "https://example.com/page.html"
-        extract_regex: '<script.*?src="(/static/.*?\\.js)".*?>'
-        url_template: "https://example.com{extracted}"
-      - url: "{step0}"
-        validate_regex: "specific_content"
-
-  - title: "Main Script"
-    headers:
-      Cookie: "session=admin"
-    steps:
-      - url: "https://example.com/main.js"
+- id: "federation_target"
+  start_url: "https://target.com/admin"
+  pipeline:
+    - extract: 'src="([^"]*index\.js)"'
+    - extract: '(mfe-app/mf-manifest\.json)'
+      template: "https://cdn.target.com/{extracted}"
+    - scan: '"(\d+\.[a-f0-9]+\.js)"'
+      template: "https://cdn.target.com/mfe-app/{extracted}"
+      validate: 'mutation DeleteItem\('
+  diff_mode: "ast"
 ```
+</details>
 
-## Step Configuration Reference
+<details>
+<summary><strong>Stats tracking</strong></summary>
 
-Each step in the `steps` array supports the following options:
+```yaml
+- id: "api_surface"
+  start_url: "https://target.com/app.js"
+  stats:
+    - name: "REST Endpoints"
+      regex: "/api/v[0-9]+/[^\"'\\s]+"
+    - name: "GraphQL Mutations"
+      regex: 'mutation [A-Z]\w+\('
+```
+</details>
 
-- **`url`** (required): The URL to fetch. Can contain placeholders like `{step0}`, `{step1}`, `{extracted}` that will be replaced with values from previous steps.
+---
 
-- **`extract_regex`** (optional): A regex pattern to extract a value from the fetched content. The first capture group (or full match if no groups) is stored and can be referenced in subsequent steps using `{extracted}` or `{stepN}`.
+## AST diff output
 
-- **`url_template`** (optional): A URL template that uses extracted values. If provided, the URL will be resolved using this template after extraction. Placeholders like `{extracted}` or `{step0}` will be replaced.
+When `diff_mode: "ast"` is set (or `--ast` flag is used), changes are grouped by symbol:
 
-- **`validate_regex`** (optional): A regex pattern to validate that the fetched content matches. If the content doesn't match, the step fails and the monitor is skipped.
-
-## Monitor Configuration Reference
-
-Each monitor entry supports:
-
-- **`title`** (required): Identifier for the file, used as filename for baseline storage.
-
-- **`steps`** (required): Array of step configurations executed in sequence.
-
-- **`headers`** (optional): Custom HTTP headers to send with every request.
-
-- **`stats`** (optional): Array of statistics to track. Each stat has:
-
-  - `name`: Name of the statistic
-  - `regex`: Regex pattern to count matches
-
-- **`max_line_length`** (optional): Maximum line length in diff output (default: 500). Longer lines are excluded from the diff.
-
-## How It Works
-
-1. **First Run:**
-
-   - Downloads initial versions of files by executing step pipelines
-   - Saves them as baselines named based on `title` in the `./js` directory
-
-2. **Monitoring:**
-
-   - Checks files every time you run the program
-   - Executes step pipelines to fetch current versions
-   - Compares with baselines using MD5 hashing
-   - Generates diff report for changes
-
-3. **Change Detection:**
-   - Formats report in Markdown
-   - Written to stdout using `print()`
-   - Checks statistics based on regex patterns
-   - Saves report history to `./js/{title}_changes.md`
-
-## Step Execution Flow
-
-The step-based pipeline works as follows:
-
-1. **Initialize**: Start with the first step's URL
-2. **Fetch**: Download content from the current URL
-3. **Extract** (if `extract_regex` provided): Extract value(s) using regex and store for next steps
-4. **Resolve** (if `url_template` provided): Construct new URL using extracted values
-5. **Validate** (if `validate_regex` provided): Verify content matches pattern
-6. **Repeat**: Move to next step, using placeholders to reference previous results
-7. **Return**: Final step's content is the target file
-
-### Placeholder Reference
-
-- `{step0}`: Value extracted from step 0
-- `{step1}`: Value extracted from step 1
-- `{stepN}`: Value extracted from step N
-- `{extracted}`: Most recently extracted value
-
-## Reports
-
-When changes are detected, you'll see reports like this:
-
-````markdown
-## JSwatch : new change for `script.js`
-
-url : https://example.com/script.js
-time : 2025-01-05 12:34:56
-
+```markdown
 ### Stats
+API Endpoints: 2 -> 4
 
-Urls: 5 -> 7
+### AST Summary
+- 2 variables modified
+- 1 function modified
+- 1 variable added
+- 1 function added
+- 1 function removed
 
 ### Changes
 
-```diff
-- old code
-+ new code
+#### + ADDED function `authenticateUser` (line 13)
+​```js
+function authenticateUser(token) {
+    return fetch('/api/v2/auth', {
+        headers: { Authorization: token }
+    });
+}
+​```
+
+#### - REMOVED function `oldFeature` (line 11)
+​```js
+function oldFeature() {
+    return "this will be removed";
+}
+​```
+
+#### ~ MODIFIED function `initApp` (line 7)
+​```diff
+ function initApp() {
+-    console.log("App v1 initialized");
++    console.log("App v2 initialized");
++    authenticateUser(SESSION_TOKEN);
+ }
+​```
 ```
-````
 
-## Tips
+Cosmetic changes (whitespace, comments) produce an empty Changes section -- the hash changes but no structural diff is reported.
 
-1. **Testing Your Regex:**
+For files that can't be parsed (minified webpack bundles, non-JS), it automatically falls back to text diff with a note.
 
-   - Use Python's regex tester to verify patterns
-   - Test URL construction with placeholders
-   - Use `--debug` flag to see step-by-step execution
+---
 
-2. **Common Issues:**
+## Architecture
 
-   - Verify URL accessibility
-   - Confirm regex patterns match target content
-   - If monitoring packed JavaScript, make sure the identifier regex uses static strings (function names may change)
-   - Check that placeholders match step indices correctly
+```
+bin/jswatch.js        CLI entry point (commander)
+src/
+  config.js           YAML loading, legacy conversion, validation
+  fetcher.js          HTTP with retry (3 attempts, exponential backoff)
+  pipeline.js         Pipeline engine: extract, scan, validate
+  diff.js             MD5 hashing, text diff, regex stats
+  ast-diff.js         Structural JS diffing with acorn
+  reporter.js         Markdown report generation, colored console output
+  watcher.js          Orchestrator, concurrent execution, watch mode
+```
 
-3. **Debug Mode:**
+Monitors within each project run concurrently via `Promise.allSettled()`. Failed fetches retry 3 times with exponential backoff (1s, 2s, 4s). 4xx errors are not retried.
 
-   - Run with `--debug` flag: `python jswatch.py --debug`
-   - Shows detailed output including regex matches, extracted values, and URL resolution
+---
 
-4. **Step Design:**
-   - Start simple: one step for static files
-   - Add extraction steps when URLs need to be discovered
-   - Use validation steps to filter out unwanted matches
-   - Test each step incrementally
+## License
 
-## Contributing 🤝
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License 📄
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.

@@ -1,0 +1,18 @@
+monitors:
+  - id: "app_bundle"
+    start_url: "http://localhost:8787/index.html"
+    pipeline:
+      - extract: 'src="([^"]+\.js)"'
+        template: "http://localhost:8787{extracted}"
+    stats:
+      - name: "API Endpoints"
+        regex: "/api/v[0-9]+/[^\"'\\s]+"
+    diff_mode: "ast"
+
+  - id: "vendor_js"
+    start_url: "http://localhost:8787/js/vendor.js"
+    stats:
+      - name: "API Endpoints"
+        regex: "/api/v[0-9]+/[^\"'\\s]+"
+      - name: "WebSocket URLs"
+        regex: "wss?://[^\\s\"']+"

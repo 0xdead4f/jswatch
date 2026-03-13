@@ -1,0 +1,31 @@
+monitors:
+  # ──────────────────────────────────────────────
+  # Trace: shop.html → federation host → mf-manifest → scan chunks
+  # Target: find the JS chunk containing `mutation DeleteCommerceCollection(`
+  # ──────────────────────────────────────────────
+  - id: "commerce_delete_collection"
+    start_url: "http://localhost:8787/linktr.ee/admin/shop.html"
+    pipeline:
+      # Step 1: Extract the federation host script URL from shop.html
+      - extract: 'src="https://assets\.production\.linktr\.ee/(linktree-federation-host/static/js/index\.js)"'
+        template: "http://localhost:8787/assets.production.linktr.ee/{extracted}"
+
+      # Step 2: From index.js, extract the mfe-commerce manifest path
+      - extract: '(mfe-commerce/mf-manifest\.json)'
+        template: "http://localhost:8787/assets.production.linktr.ee/{extracted}"
+
+      # Step 3: Scan all chunk filenames from the manifest, fetch each,
+      #         find the one containing the DeleteCommerceCollection mutation
+      - scan: '"(\d+\.[a-f0-9]+\.js)"'
+        template: "http://localhost:8787/assets.production.linktr.ee/mfe-commerce/{extracted}"
+        validate: 'mutation DeleteCommerceCollection\('
+
+    stats:
+      - name: "GraphQL Mutations"
+        regex: 'mutation [A-Z]\w+\('
+      - name: "GraphQL Queries"
+        regex: 'query [A-Z]\w+\('
+      - name: "API Endpoints"
+        regex: "/api/v[0-9]+/[^\"'\\s]+"
+
+    diff_mode: "ast"

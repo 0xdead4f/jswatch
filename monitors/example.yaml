@@ -28,24 +28,29 @@ monitors:
   # 3. Multi-step pipeline (Nuxt / Webpack chunks)
   # ──────────────────────────────────────────────
   # Each step's output automatically feeds the next.
+  # No {step0} needed!
 
   - id: "nuxt_chunk"
     start_url: "https://example.com/home/"
     pipeline:
+      # Step 1: Extract JS path from homepage HTML
       - extract: '<script.*?src="(.*?\.js)".*?>'
         template: "https://example.com{extracted}"
+
+      # Step 2: Extract a hash from inside that JS file
       - extract: "hash=['\"]([a-f0-9]+)['\"]"
         template: "https://example.com/_nuxt/{extracted}.js"
+
+      # Step 3: Validate the final JS content
       - validate: "SPECIFIC_FUNCTION_NAME"
 
   # ──────────────────────────────────────────────
-  # 4. With statistics tracking + AST diff
+  # 4. With statistics tracking
   # ──────────────────────────────────────────────
-  # Count regex matches and use structural JS diffing.
+  # Count regex matches (API endpoints, tokens, etc.)
 
   - id: "api_tracker"
     start_url: "https://example.com/app.js"
-    diff_mode: "ast"
     stats:
       - name: "API Endpoints"
         regex: "/api/v[0-9]+/.*"
@@ -53,35 +58,38 @@ monitors:
         regex: "wss?://[^\\s\"']+"
 
   # ──────────────────────────────────────────────
-  # 5. Scan: search across webpack chunks
+  # 5. Complex multi-step with validation
   # ──────────────────────────────────────────────
-  # Use `scan` to extract ALL regex matches, fetch each
-  # URL in parallel, and find the one matching `validate`.
-  # Perfect for finding a specific function/mutation in
-  # webpack module federation chunks.
 
-  - id: "commerce_mutation"
-    start_url: "https://example.com/admin"
+  - id: "complex_bundle"
+    start_url: "https://example.com/app"
+    headers:
+      Authorization: "Bearer token123"
     pipeline:
-      # Extract the federation host script URL
-      - extract: 'src="([^"]*federation[^"]*index\.js)"'
-      # Extract the module manifest path
-      - extract: '(mfe-commerce/mf-manifest\.json)'
-        template: "https://cdn.example.com/{extracted}"
-      # Scan all chunks from manifest, find the one with the target mutation
-      - scan: '"(\d+\.[a-f0-9]+\.js)"'
-        template: "https://cdn.example.com/mfe-commerce/{extracted}"
-        validate: 'mutation DeleteCollection\('
-    stats:
-      - name: "GraphQL Mutations"
-        regex: 'mutation [A-Z]\w+\('
+      # Find the main script tag
+      - extract: 'src="([^"]*\.js)"'
+        template: "https://example.com{extracted}"
+
+      # Find the loader reference inside it
+      - extract: "(loader\\.js)"
+        template: "https://example.com/scripts/{extracted}"
+
+      # Extract bundle identifier from loader
+      - extract: "bundleId=['\"]([^'\"]+)['\"]"
+        template: "https://example.com/bundles/{extracted}.js"
+
+      # Final validation
+      - validate: "APP_INITIALIZED"
 
   # ──────────────────────────────────────────────
-  # 6. Auto-resolve relative URL (no template needed)
+  # 6. Auto-resolve relative URL (no template needed!)
   # ──────────────────────────────────────────────
+  # If you skip `template`, JSWatch auto-resolves the
+  # extracted path relative to the current URL using urljoin.
 
   - id: "auto_resolve"
     start_url: "https://example.com/app/"
     pipeline:
       - extract: 'src="([^"]+\.js)"'
-      # no template → extracted path auto-joined to current URL
+      # no template → extracted "/js/app.abc123.js" auto-joined
+      # to "https://example.com/js/app.abc123.js"
