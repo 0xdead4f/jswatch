@@ -7,3 +7,4 @@ __pycache__/
 test_monitor.json
 monitor.json
 test_site/
+monitors/*
