@@ -31,6 +31,13 @@ export function formatDiff(oldContent, newContent, maxLineLength = 500) {
       const formatted = `${prefix} ${line}`;
       if (formatted.length <= maxLineLength) {
         result.push(formatted);
+      } else {
+        // Don't silently drop a changed long line. Minified bundles routinely
+        // leave lines longer than maxLineLength even after beautify (js-beautify
+        // doesn't wrap string literals), and dropping them renders a real change
+        // as an empty diff. Truncate with a marker so the change still surfaces.
+        const suffix = ` … [+${formatted.length - maxLineLength} chars]`;
+        result.push(formatted.slice(0, Math.max(0, maxLineLength - suffix.length)) + suffix);
       }
     }
   }

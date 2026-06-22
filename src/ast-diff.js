@@ -2,7 +2,10 @@ import * as acorn from 'acorn';
 import crypto from 'crypto';
 import jsBeautify from 'js-beautify';
 const { js_beautify } = jsBeautify;
-import { diffLines } from 'diff';
+import { structuredPatch } from 'diff';
+
+const SCOPED_DIFF_CONTEXT = 3;     // lines of unchanged context to keep around each change
+const SCOPED_DIFF_MAX_LINES = 200; // hard cap on a single symbol's diff body
 
 const MAX_AST_SIZE = 2 * 1024 * 1024; // 2MB default
 
@@ -35,16 +38,17 @@ function hash(str) {
  */
 function extractSymbols(ast, source) {
   const symbols = new Map();
-  let body = ast.body;
 
-  // IIFE unwrapping: if single ExpressionStatement wrapping a call to a function expression
-  if (body.length === 1 && body[0].type === 'ExpressionStatement') {
-    const expr = body[0].expression;
-    if (expr.type === 'CallExpression' &&
-        (expr.callee.type === 'FunctionExpression' || expr.callee.type === 'ArrowFunctionExpression') &&
-        expr.callee.body.type === 'BlockStatement') {
-      body = expr.callee.body.body;
-    }
+  // IIFE unwrapping. Minified webpack/rollup bundles wrap all real code in an
+  // IIFE — often preceded by hoisted declarations, e.g. `var __NR_MODULES;(()=>{
+  // ...everything... })()`. Unwrap any top-level IIFE (not just when it's the
+  // sole statement) so the inner symbols are visible; otherwise the whole bundle
+  // collapses to a couple of trivial symbols and edits inside it diff to nothing.
+  const body = [];
+  for (const node of ast.body) {
+    const inner = iifeBody(node);
+    if (inner) body.push(...inner);
+    else body.push(node);
   }
 
   for (const node of body) {
@@ -55,6 +59,26 @@ function extractSymbols(ast, source) {
   }
 
   return symbols;
+}
+
+/**
+ * If `node` is a top-level IIFE expression statement — `(()=>{...})()`,
+ * `(function(){...})()`, or the `!function(){...}()` unary form — return the
+ * statements inside its body; otherwise null. One level only (enough for the
+ * single wrapping IIFE that bundlers emit).
+ */
+function iifeBody(node) {
+  if (node.type !== 'ExpressionStatement') return null;
+  let expr = node.expression;
+  if (expr.type === 'UnaryExpression') expr = expr.argument; // `!function(){}()`
+  if (
+    expr.type === 'CallExpression' &&
+    (expr.callee.type === 'FunctionExpression' || expr.callee.type === 'ArrowFunctionExpression') &&
+    expr.callee.body.type === 'BlockStatement'
+  ) {
+    return expr.callee.body.body;
+  }
+  return null;
 }
 
 function extractFromNode(node, source) {
@@ -125,23 +149,27 @@ function extractFromNode(node, source) {
 }
 
 /**
- * Generate a scoped diff for a modified symbol.
+ * Generate a scoped diff for a modified symbol. Emits a unified diff with only a
+ * few lines of context around each change — NOT the entire symbol body. Without
+ * this, a one-line edit inside a huge minified symbol (e.g. a webpack module map
+ * held in a single `var e = {...}`) would dump the whole beautified symbol as
+ * unchanged context (tens of thousands of lines). Output is capped as a backstop.
  */
 function scopedDiff(oldSlice, newSlice) {
   const oldBeautified = js_beautify(oldSlice);
   const newBeautified = js_beautify(newSlice);
-  const changes = diffLines(oldBeautified, newBeautified);
+  const { hunks } = structuredPatch('a', 'b', oldBeautified, newBeautified, '', '', { context: SCOPED_DIFF_CONTEXT });
 
   const lines = [];
-  for (const part of changes) {
-    const partLines = part.value.split('\n').filter(l => l !== '');
-    if (part.added) {
-      for (const l of partLines) lines.push(`+${l}`);
-    } else if (part.removed) {
-      for (const l of partLines) lines.push(`-${l}`);
-    } else {
-      for (const l of partLines) lines.push(` ${l}`);
-    }
+  for (const hunk of hunks) {
+    lines.push(`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`);
+    for (const l of hunk.lines) lines.push(l);
+  }
+
+  if (lines.length > SCOPED_DIFF_MAX_LINES) {
+    const kept = lines.slice(0, SCOPED_DIFF_MAX_LINES);
+    kept.push(`... (${lines.length - SCOPED_DIFF_MAX_LINES} more diff lines truncated)`);
+    return kept.join('\n');
   }
   return lines.join('\n');
 }
