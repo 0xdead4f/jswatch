@@ -121,7 +121,7 @@ async function runOnce(options) {
  * Main entry point. Supports single run and watch mode.
  */
 export async function run(options) {
-  const { watch = false, interval = 300 } = options;
+  const { watch = false, interval = 300, debug = false } = options;
 
   if (!watch) {
     const exitCode = await runOnce(options);
@@ -154,7 +154,8 @@ export async function run(options) {
       await new Promise(r => setTimeout(r, 1000));
     }
 
-    if (running) {
+    // Recurring heartbeat - only under verbose (was a tight-loop spam when NaN).
+    if (running && debug) {
       console.log(chalk.cyan(`\n[*] Re-checking... (${new Date().toLocaleTimeString()})`));
     }
   }
